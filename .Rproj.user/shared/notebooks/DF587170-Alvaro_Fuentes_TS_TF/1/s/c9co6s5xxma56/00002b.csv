@@ -1,0 +1,4 @@
+"0","for(i in 1:40){"
+"0","  print(autoplot(df_ury_ts[ ,i]))"
+"0","}"
+"0",""

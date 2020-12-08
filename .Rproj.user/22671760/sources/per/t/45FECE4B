@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1603158523475.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "45FECE4B",
+    "lastKnownWriteTime" : 2205928783432,
+    "last_content_update" : 1603158523475,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "id" : "e4c1cabd9b304521be23f8cd2b6d0d95",
+        "name" : "refit.lasso1",
+        "title" : "refit.lasso1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "object_explorer"
+}

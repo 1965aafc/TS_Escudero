@@ -1,0 +1,32 @@
+{
+    "id": "D3DBF8DB",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1607053354460.0,
+    "source_on_save": false,
+    "relative_order": 20,
+    "properties": {
+        "expression": "factores",
+        "caption": "factores",
+        "totalObservations": 187,
+        "displayedObservations": 187,
+        "variables": 5,
+        "cacheKey": "A213CB3B",
+        "object": "factores",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=factores&cache_key=A213CB3B&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 4189020990314997106,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1607053354460,
+    "read_only": false,
+    "read_only_alternatives": []
+}

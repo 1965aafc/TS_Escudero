@@ -1,0 +1,4 @@
+"0","x.1 <- cbind(df_ury_ts[,""IPC""],df_ury_ts[,""M2_cierre""], df_ury_ts[,""TC_Cierre_Interb_media""])"
+"0","colnames(x.1) <- c(""IPC"",""M2_cierre"", ""TC_Cier_med"")"
+"0","plot(diff(log(x.1)), main=""Figura 9. Series de IPC, M2 y tipo de cambio, en logs y diferenciadas."")"
+"0",""

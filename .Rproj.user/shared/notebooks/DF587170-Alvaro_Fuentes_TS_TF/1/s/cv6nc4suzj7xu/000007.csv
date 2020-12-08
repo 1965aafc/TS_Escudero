@@ -1,0 +1,4 @@
+"0","for(i in 21:24){"
+"0","  print(autoplot(diff(df_ury_ts[ ,i])))"
+"0","}"
+"0",""

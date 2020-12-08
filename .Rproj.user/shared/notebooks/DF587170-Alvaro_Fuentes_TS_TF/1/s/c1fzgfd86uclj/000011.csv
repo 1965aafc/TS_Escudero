@@ -1,0 +1,8 @@
+"0","library(ggplot2)"
+"0","ggplot(data = data.frame(prop_varianza, pc = 1:37),"
+"0","       aes(x = pc, y = prop_varianza)) +"
+"0","  geom_col(width = 0.3) +"
+"0","  scale_y_continuous(limits = c(0,0.25)) +"
+"0","  theme_bw() +"
+"0","  labs(x = ""Componente principal"","
+"0","       y = ""Prop. de varianza explicada"")"

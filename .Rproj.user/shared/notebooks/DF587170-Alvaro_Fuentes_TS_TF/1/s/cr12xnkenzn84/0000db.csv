@@ -1,0 +1,3 @@
+"0","#Grafico los pronÃ³sticos de los 3 modelos:"
+"0","y.rlz <- ts(ynew[151:187,1], start=c(2017,8), frequency = 12)"
+"0","plot(fcst.favar[,""Series 1""], col = ""grey"", lwd = 5, main=""Forecasts"", ylab = """", xlab = """")"

@@ -1,0 +1,4 @@
+"0","#Generamos los pronÃ³sticos:"
+"0","fcst.arima <- forecast(fit.arima, h = length(test))"
+"0","fcst.ets <- forecast(fit.ets, h = length(test))"
+"0","autoplot(fcst.arima)"

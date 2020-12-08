@@ -1,0 +1,911 @@
+---
+title: Predicción de la inflación en Uruguay a partir de modelos de series de tiempo
+author: "Alvaro Fuentes Coiana"
+date: "'2020-12-04"
+output: word_document
+subtitle: Trabajo final del curso Modelos de pronósticos. Un enfoque Moderno.
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Predicción de la inflación en Uruguay a partir de modelos de series de tiempo 
+
+```{r, echo=FALSE}
+#Librerías a usar
+library(readxl)
+library(lubridate)
+library(ggplot2)
+#raíces unitarias
+library(zoo)
+library(urca)
+#pronósticos
+library(forecast)
+#otras
+library(glmnet)
+library(corrplot)
+library(caret)
+```
+
+## Objetivo
+
+El objetivo de este estudio es comparar un conjunto de modelos de predicción 
+de la inflación en Uruguay, basados en la aplicación de las metodologías
+estudiadas en el curso dictado por Walter Sosa Escudero y Magdalena Cornejo.
+
+## Justificación 
+
+La inflación en Uruguay muestra una persistencia llamativa en comparación con 
+la experiencia internacional. En efecto, aún en un período de relativa calma, 
+como el registrado tras la crisis de 2002, los niveles de inflación en el país
+se han mantenido estables, pero elevados en torno al 8% anual, un valor que lo
+sitúa entre los países de inflación media a nivel mundial. 
+Esta situación sin embargo, no parece haber generado grandes sobresaltos en 
+términos de su econmía, habida cuenta que el período post crisis ha coincidido
+con el de mayor crecimientocontinuado del PIB desde que se llevan estimaciones. 
+Al parecer, los agentes se han acostumbrado a convivir con un nivel de inflación 
+estable, aunque el mismo pueda ser elevado en consideración a lo sucedido en 
+el resto del mundo donde esta se ha mostrado en caída, en un nivel bastante
+inferior al que se da en el país.
+
+```{r, echo=FALSE}
+#data inflación mundial para figura 1
+df_world <- read_excel("world_inflation.xlsx", col_names = TRUE) #importo los datos
+df_world <- ts(df_world, start = c(2000), frequency = 1)
+#figura 1
+df_world_w <- window(df_world, start=2005)
+autoplot(df_world_w[ ,c("Uruguay", "Argentina", "Brazil", "China, People's Republic of",
+                      "United States", "World")]) +
+  labs(
+    title = "Figura 1. Variación anual de la inflación, en porcentaje.",
+    subtitle ="Países seleccionados, 2005-2020",
+    caption = "Fuente: FMI, 2020 proy."
+  ) +
+  xlab("Año") +
+  ylab("Porcentaje")
+   
+
+```
+
+
+## Metodología
+
+La metodología a aplicar sigue alguna de las técnicas presentadas en el curso.
+En particular, se estimará un conjunto de modelos univariados y multivariados,
+basados en técnicas de series temporales, comparándolos en términos de su poder
+predictivo. Partiendo de la base de un modelo univariado, se incorporará al
+análisis distintas características, que permitirán complejizar los modelos, 
+recorriendo un camino que va desde el más sencillo al más complejo. Esto permi-
+tirá no solo evaluar sus predicciones sino también, aportar evidencia respecto
+de cuáles de esos factores resultaron los de mayor importancia en el proceso
+inflacionario.
+
+El período a analizar será el posterior a la mencionada crisis debido a que, es
+para este con que se cuenta con una mayor disponibilidad de indicadores que 
+pueden oficiar como covariables de la inflación. El análisis parte desde enero 
+de 2005 y se extiende hasta setiembre de 2020 que es el último mes para el que
+se encontraban disponibles algunas de las covariables mencionadas.
+
+El documento se estructura de la siguiente forma: en la segunda sección, se 
+realiza un estudio estadístico descriptivo de la serie de IPC en Uruguay así
+como de las características incluidas en el set de datos. En la tercera sección,
+se procede al análisis de las raíces unitarias y se implementan las transforma-
+ciones necesarias para alcanzar la estacionariedad. En la cuarta sección se 
+estima el o los modelos unidimensionales de mejor performance en la predicción.
+En la quinta sección se estiman modelos de ****. En la sexta sección, ****.
+En la séptima se resumen los resultados de los modelos y se presentan las predi-
+cciones a partir del mejor modelo.
+
+
+```{r, echo=FALSE}
+df_ury <- read_excel("20201121_TS_TF.xlsx", col_names = TRUE) #importo los datos
+remove <- c(189) #elimino fila sobrante
+df_ury <- df_ury[ - remove, ]
+df_ury_ts <- ts(df_ury[ ,2:42], start = c(2005,1), frequency = 12) #declaro ts
+```
+
+## Análisis Estadístico Descriptivo.
+### Estudio de la serie de IPC, raíces unitarias y transformaciones.
+
+En Uruguay la inflación se mide a partir de la variación del Índice de Precios 
+al Consumidor. Este indicador es elaborado en forma mensual y continuada desde 
+1937, inicialmente por el Ministerio de Economía y actualmente por el Insituto 
+Nacional de Estadística.
+
+En sus orígenes la cobertura fue sólo para Montevideo, aunque sus alcances le-
+gales siempre fueron nacionales. Desde el último cambio de base, que data de 
+2010, su cobertura se extendió, para abarcar la áreas urbanas de todo el país. 
+En la figura 2 se presenta la evolución temporal de la serie del IPC, la que 
+presenta una tendencia creciente bastante suave y constante, sin patrones esta-
+cionales que llamen la atención a primera vista.
+
+```{r, echo = FALSE}
+#figura 2
+autoplot(df_ury_ts[ ,c("IPC")]) +
+  labs(
+    title = "Figura 2. Índice de Precios al Consumo.",
+    subtitle ="Uruguay, Ene-2005 a Ago-2020",
+    caption = "Fuente: INE."
+  ) +
+  xlab("Mes/Año") +
+  ylab("Número índice")
+
+#plot.ts(df_ury_ts[ ,c("IPC")], main = "Índice de Precios al Consumidor de Uruguay")
+```
+Dada las características de la serie, se estudiará la existencia de raíces unitarias en la serie en logaritmos así como la primera y segunda diferencias de ésta. Previamente, se presenta el gráfico de las primeras diferencias de la serie original y en logaritmos, para mostrar el aumento de la varianza en la primera y su moderación en la segunda. (Ver figuras 3 y 4)
+
+```{r, echo=FALSE}
+#figura 3
+autoplot(log(df_ury_ts[ ,c("IPC")])) +
+  labs(
+    title = "Logaritmo del Índice de Precios al Consumo.",
+    subtitle ="Uruguay, Feb-2005 a Ago-2020",
+    caption = "Fuente: INE."
+  ) +
+  xlab("Mes/Año") +
+  ylab("Variación")
+
+#figura 4
+autoplot(diff(df_ury_ts[ ,c("IPC")])) +
+  labs(
+    title = "Variación mensual Índice de Precios al Consumo.",
+    subtitle ="Uruguay, Feb-2005 a Ago-2020",
+    caption = "Fuente: INE."
+  ) +
+  xlab("Mes/Año") +
+  ylab("Variación")
+
+#figura 5
+autoplot(diff(log(df_ury_ts[ ,c("IPC")]))) +
+  labs(
+    title = "Figura 3. Variación mensual del logaritmo del IPC.",
+    subtitle ="Uruguay, Feb-2005 a Ago-2020",
+    caption = "Fuente: INE."
+  ) +
+  xlab("Mes/Año") +
+  ylab("Variación") 
+
+
+```
+
+Se aplican tres pruebas de raíz unitaria, los test de Dickey-Fuller aumentado, Phillips-Perron y KPSS sobre el logaritmo de la serie original, su primera y segunda diferencias. Los dos primeros test postulan como H0 la existencia de una raíz unitaria en la serie, al tiempo que el tercero postula su estacionariedad. A partir de los resultados obtenidos de los distintos test, se establece la existencia de una única raíz unitaria en el logaritmo del IPC, por lo que se trabajará en adelante con la primera diferencia.
+
+
+
+```{r,echo=FALSE}
+RU <- read_excel("20201122_RU_IPC_URY.xlsx", col_names = TRUE) #importo los resultados de test RU
+print(RU)
+```
+
+### Patrones estacionales de la serie logarítmica diferenciada.
+
+Es posible plantear revelar patrones estacionales en la serie mediante inspección
+gráfica. En la figura 5 se presenta un gráfico estacional, donde se puede
+observar un patrón estacional, con el mes de enero por encima del resto. Esto 
+es consistente con la forma de ajuste de las tarifas públicas, que suelen darse
+mayoritariamente en dicho mes. Adicionalmente, es consistente con una caída en 
+los meses de diciembre, observada a partir de 2012 cuando se implementara un 
+plan de descuentos anuales en las cuentas de electricidad (UTE premia). Esto 
+llevó a un cambio en el patrón para el último mes del año que, hasta ese entonces
+solía ser de variaciones promedio y pasó a ubicarse en el extremo inferior.
+Para el año 2020 se observa además una anomalía en el mes de abril, dado que en 
+este año las tarifas públicas se incrementaron en dicho mes en vez de en enero. 
+Algo similar se había observado en 2005, con una postergación de los aumentos de
+enero, que luego se efectivizaron en marzo y quedaron registrados en abril. 
+
+```{r, echo=FALSE}
+#ELEGIR SI EL LINEAL O EL POLAR o SUBSERIES [SUBSERIES]
+#ggseasonplot(diff(log(df_ury_ts[ ,c("IPC")])), year.labels = TRUE, year.labels.left = TRUE) +
+#    labs(
+#    title = "Figura 5. Índice de Precios al Consumo por año.",
+#    subtitle ="Uruguay, Ene-2005 a Ago-2020",
+#    caption = "Fuente: INE."
+#    )
+
+#ggseasonplot(diff(log(df_ury_ts[ ,c("IPC")])), polar = TRUE) +
+#    labs(
+#    title = "Figura 5. Índice de Precios al Consumo por año.",
+#    subtitle ="Uruguay, Ene-2005 a Sep-2020",
+#    caption = "Fuente: INE."
+#    )
+
+ggsubseriesplot(diff(log(df_ury_ts[ ,c("IPC")]))) +
+    labs(
+    title = "Figura 4. IPC por año.",
+    subtitle ="Uruguay, Ene-2005 a Sep-2020",
+    caption = "Fuente: INE."
+    )
+
+```
+
+A modo de cierre, en la figura 6 se presenta el correlograma de la serie, que 
+da cuenta en forma muy clara del patrón estacional anual mencionado, así como la 
+posibilidad de dos rezagos en el corto plazo. Esto debiera ser reconocible 
+en un modelo SARIMA, que se presentará en la siguiente sección.
+
+```{r, echo=FALSE}
+ggAcf(diff(log(df_ury_ts[ ,c("IPC")]))) +
+  labs(
+    title = "Figura 5. Correlograma de la serie diferenciada del logaritmo de IPC.",
+    subtitle ="Uruguay, Ene-2005 a Sep-2020",
+    caption = "Fuente: INE.")
+
+ggPacf(diff(log(df_ury_ts[ ,c("IPC")]))) +
+  labs(
+    title = "Figura 6. Correlograma parcial de la serie diferenciada del logaritmo de IPC.",
+    subtitle ="Uruguay, Ene-2005 a Sep-2020",
+    caption = "Fuente: INE.")
+```
+## Modelos de pronóstico unidimensionales: ARIMA y ETS.
+
+La primera etapa de construcción de modelos se enfoca en modelos unidimensionales.
+En particular, se estimarán modelos ARIMA, mediante la función auto ARIMA y mo-
+delos ETS de suavizado exponencial. Respecto del modelo ARIMA seleccio-
+nado, este resulta tener dos componentes autorregresivos, más uno estacional anual
+tal como pudo anticiparse del análisis gráfico anterior.El estudio de los resi-
+duos no permite descartar que se traten de ruido blanco. Respecto del modelo ETS,
+los residuos del modelo no alcanzan a ser ruido blanco, permaneciendo un compo-
+nente autorregresivo asociado al patrón de variación anual de la inflación. 
+Por último, la comparación de la performance entre ambos modelos no arroja resul-
+tados conclusivos en lo que refiere a su capacidad predictiva. En efecto, alguno
+de los indicadores son mejores en el modelo ETS y otros en el ARIMA o similares
+entre ambos, lo que hace difícil la selección. En las siguientes secciones se 
+estimarán otros modelos lo que podría dar lugar a la aparición de uno mejor a 
+los presentados hasta ahora.
+
+```{r, echo=FALSE}
+
+#Dividimos la muestra:
+train <- window((diff(log(df_ury_ts[ ,c("IPC")]))), end = c(2017,8))
+test <- window(diff(log(df_ury_ts[ ,c("IPC")])), start = c(2017,9))
+
+length(train)
+length(test)
+
+#Estimamos los modelos:
+fit.arima <- auto.arima(train)
+summary(fit.arima)
+checkresiduals(fit.arima)
+
+fit.ets <- ets(train)
+summary(fit.ets)
+checkresiduals(fit.ets)
+
+#Generamos los pronÃ³sticos:
+fcst.arima <- forecast(fit.arima, h = length(test))
+fcst.ets <- forecast(fit.ets, h = length(test))
+autoplot(fcst.arima)
+autoplot(fcst.ets)
+
+#Evaluamos el desempeño:
+accuracy(fcst.arima$mean, test) #es el elemento mean del pronostico (lista)
+accuracy(fcst.ets$mean, test)
+
+```
+## Un mayor grado de complejidad: modelos multivariados, complejidad y selección de variables
+
+La estrategia en este caso supone estimar un modelo multivariado para prdecir la inflación, 
+a partir de un conjunto amplio de covariables.Inicialmente, se presenta la matriz de corre-
+laciones, donde destacan algunas muy fuertes, especialmente entre variables que representan
+al sector real. Sin embargo, debe tomarse en cuenta que las variables se encuentran
+en su mayoría en niveles por lo que la correlación elevada puede deberse a la 
+existencia de raíces unitarias.
+
+```{r, echo=FALSE}
+#transformo variables en primeras diferencias
+data <- df_ury
+y <- ts(data$IPC[2:188], start = c(2005,2), frequency = 12)
+#consecuentemente, no toma el último dato de X
+x <- as.matrix(data[1:187,3:42]) #matriz de variables independientes (laguedas un periodo)
+lagy <- ts(data$IPC[1:187], start = c(2005,2), frequency = 12)
+#podría haber trabajado con lag(y)
+#x y lagy tienen la misma longitud, las conforma
+x <- cbind(x, lagy)
+#Mapa de calor (correlaciones)
+corrplot(cor(x), method="color")
+correlaciones <- cor(x)
+x <- ts(x, start = c(2005,2), frequency = 12)
+
+
+```
+A continuación, se ajustaron dos modelos multivariados para predecir el IPC, utilizando
+el set completo de variables y aplicando dos metodologías alternativas, backward y
+forward selection. El primero parte del modelo completo, eliminando paso a paso
+aquellas variables de menor aporte según un criterio de información, en este caso
+el de Akaike (AIC).La predicción out sample se realiza en forma recursiva, tomando
+los últimos 37 datos de la serie como set de testeo. El ajuste resulta muy similar
+aplicando ambas metodologías, reproduciendo bastante bien la trayectoria del índice.
+El modelo backward conserva 27 variables de las 41 originales mientras que el 
+forward se queda con 19.
+
+```{r, echo=FALSE}
+#PRONOSTICOS RECURSIVOS
+#Ventana inicial: 2005.2-2017.7 ()
+#Out-of-sample: 2017.8-2020.7 (T=36)
+#PronÃ³sticos un paso adelante y reevalúa los parámetros
+#time(y) #me muestra cómo R almacena 
+
+#Stepwise Selection
+#selecciona los modelos con la funcion step que minimiza un criterio de info
+#Backward: pronÃ³sticos recursivos
+fcst.backward<-matrix(0, nrow = 37, ncol = 1)  #armo un vector para almacenar pronosticos
+fcst.backward <- ts(fcst.backward, start=c(2017,8), frequency = 12)
+for(i in 1:37){
+  y.train <- window(y, end = 2017.500 + (i-1)/12) #window es como un slice, 37 es el 20% de las obs.
+  x.train <- window(x, end = 2017.500 + (i-1)/12) #va cambiando la ventana de entrenamiento y predicc
+  x.test <- window(x, start = 2017.583 + (i-1)/12)
+  #parte del full (.)
+  #trace = FALSE evita el reporte de lo smodelos
+  step.model <- step(lm(y.train~., data=x.train), direction = "backward", trace = FALSE)
+  fcst.backward[i,] <- predict(step.model, newdata = x.test)[1]  #sólo retiene el pronóstico a un paso
+}
+
+step.model$coefficients
+
+#Forward: pronÃ³sticos recursivos
+#parto del modelo lm = f(cte) y voy agregando parámetros
+fcst.forward <- matrix(0, nrow = 37, ncol = 1)  #armo el vector que almacena pronosticos
+fcst.forward <- ts(fcst.forward, start=c(2017,8), frequency = 12)
+for(i in 1:37){
+  y.train <- window(y, end = 2017.500 + (i-1)/12)
+  x.train <- window(x, end = 2017.500 + (i-1)/12)
+  x.test <- window(x, start = 2017.583 + (i-1)/12)
+  full.model <- formula(lm(y.train~.,data = x.train))
+  step.model <- step(lm(y.train~1, data=x.train), direction = "forward", trace = FALSE, scope = full.model)
+  fcst.forward[i,] <- predict(step.model, newdata = x.test)[1]
+}
+
+step.model$coefficients
+
+#GRAFICOS
+y.test <- window(y, start = c(2017,8))
+#par(mfrow=c(1,2), oma=c(0.5,0.5,0.5,0.5), mar=c(2,2,2,2))
+#plot(y.test, main="Realized", ylab = "", xlab = "")
+plot(fcst.forward, col = "grey", lwd = 5, main="Iterative Selection", ylab = "", xlab = "")
+lines(fcst.backward)
+lines(y.test, col = "red", lwd = 1)
+legend(2018, 210, legend=c("Frw", "Bck", "Rlz"), col=c("grey", "black", "red"), lwd = c(5,1), box.lty=0, ncol = 1, cex = 0.8, y.intersp=1)
+
+
+```
+Dado que el número de predictores resulta elevado en ambas opciones (28 en el backward
+y 18 en el forward, contando el intercepto), se aplicará una regresión de tipo Lasso, 
+que permite penalizar a aquellos coeficientes que  menos aportan a la predicción. 
+A posteriori, se evaluará la precisión de las diferentes predicciones, es decir, 
+el modelo backward, el forward y dos versiones de regresión Lasso, contrastándolas 
+con el modelo de predicción naive (media de la serie).Los dos modelos de Lasso estimados
+no aportan gran ganancia en simplicidad. En efecto, el primero de ellos descarta 10
+coeficientes en tanto el segundo descarta 14, dejando un número similar al backward.
+
+```{r, echo=FALSE}
+#LASSO: Least Absolute Shrinkage and Selection Operator
+#funciÃ³n glmnet() con alpha=1
+#Probamos con 2 variantes de lambda. En los Ãºltimos dos seguimos la sugerencia de Belloni y Chernozhukov (2011) para c=0.002 y c=0.006
+# c cercano a 0 para que no anulo los predictores
+
+#PronÃ³sticos recursivos de la regresiÃ³n LASSO con lambda1
+#glmnet corre lasso, se guarda el primer predictor solamente
+fcst.lasso1<-matrix(0, nrow = 37, ncol = 1)  #armo un vector donde voy a ir almacenando los pronÃ³sticos
+for(i in 1:37){
+  y.train <- window(y, end = 2017.500 + (i-1)/12)
+  x.train <- window(x, end = 2017.500 + (i-1)/12)
+  x.test <- window(x, start = 2017.583 + (i-1)/12)
+  reg <- lm(y.train~as.matrix(x.train))
+  sigma <- sqrt(sum(reg$residuals^2)/(length(y.train)-41-1)) 
+  lambda1 <- 2*0.002*sigma*sqrt(length(y.train))*qnorm(1-0.05/(2*41))^(-1)
+  refit.lasso1 <- glmnet(x.train, y.train, alpha = 1, lambda = lambda1)
+  fcst.lasso1[i,] <- predict(refit.lasso1, s = lambda1, newx = x.test)[1]
+}
+
+fcst.lasso1 <- ts(fcst.lasso1, start=c(2017,8), frequency = 12)
+
+#PronÃ³sticos recursivos de la regresiÃ³n LASSO con lambda2
+fcst.lasso2<-matrix(0, nrow = 37, ncol = 1)  #armo un vector donde voy a ir almacenando los pronÃ³sticos
+for(i in 1:37){
+  y.train <- window(y, end = 2017.500 + (i-1)/12)
+  x.train <- window(x, end = 2017.500 + (i-1)/12)
+  x.test <- window(x, start = 2017.583 + (i-1)/12)
+  reg <- lm(y.train~x.train)
+  sigma <- sqrt(sum(reg$residuals^2)/(length(y.train)-41-1)) 
+  lambda2 <- 2*0.006*sigma*sqrt(length(y.train))*qnorm(1-0.05/(2*41))^(-1)
+  refit.lasso2 <- glmnet(x.train, y.train, alpha = 1, lambda = lambda2)
+  fcst.lasso2[i,] <- predict(refit.lasso2, s = lambda2, newx = x.test)[1]
+}
+
+fcst.lasso2 <- ts(fcst.lasso2, start=c(2017,8), frequency = 12)
+
+refit.lasso1$beta
+refit.lasso2$beta
+
+#GRAFICOS
+y.test <- window(y, start = c(2017,8))
+#par(mfrow=c(1,2), oma=c(0.5,0.5,0.5,0.5), mar=c(2,2,2,2))
+#plot(y.test, main="Realized", ylab = "", xlab = "")
+plot(fcst.lasso1, col = "grey", lwd = 5, main="Lasso", ylab = "", xlab = "")
+lines(fcst.lasso2)
+lines(y.test, col = "red")
+legend(2018, 210, legend=c("c=0.002", "c=0.006", "Realized"), col=c("grey", "black", "red"), lwd = c(5,1), box.lty=0, ncol = 1, cex = 0.8, y.intersp=1)
+
+
+```
+Cuando se analizan las medidas de precisión en la predicción, se observa que cualquiera
+de los cuatro modelos presentan menor error que el benchmark. Adicionalmente,
+tanto los modelos forward, backward y lasso resultan muy similares, con una escasa
+diferencia a favor del primero el que, según el test de Diebold y Mariano, tiene 
+errores de predicción equivalentes en media con el segundo.
+
+
+```{r, echo=FALSE}
+#PM (the prevailing mean model) -> BENCHMARK
+fcst.pm<-matrix(0, nrow = 37, ncol = 1)  #armo un vector donde voy a ir almacenando los pronÃ³sticos
+for(i in 1:37){
+  y.train <- window(y, end = 2017.500 + (i-1)/12)
+  fcst.pm[i,] <- mean(y.train)
+}
+
+fcst.pm <- ts(fcst.pm, start=c(2017,8), frequency = 12)
+
+#GRAFICOS
+y.test <- window(y, start = c(2017,8))
+par(mfrow=c(1,2), oma=c(0.5,0.5,0.5,0.5), mar=c(2,2,2,2))
+plot(y.test, main="Realized", ylab = "", xlab = "")
+plot(fcst.pm, col = "grey", lwd = 5, main="Prevailing Mean", ylab = "", xlab = "", type = "l")
+lines(y.test, col = "red")
+
+#ACCURACY MEASURES
+accuracy(fcst.forward, y.test)
+accuracy(fcst.backward, y.test)
+accuracy(fcst.lasso1, y.test)
+accuracy(fcst.lasso2, y.test)
+accuracy(fcst.pm, y.test)
+
+#TEST DE DIEBOLD-MARIANO
+#tengo que construirme la serie de errores de pronÃ³stico de cada modelo
+e.fcst.forward <- as.numeric(y.test)-as.numeric(fcst.forward)
+e.fcst.backward <- as.numeric(y.test)-as.numeric(fcst.backward)
+e.fcst.lasso1 <- as.numeric(y.test)-as.numeric(fcst.lasso1)
+e.fcst.lasso2 <- as.numeric(y.test)-as.numeric(fcst.lasso2)
+e.fcst.pm <- as.numeric(y.test)-as.numeric(fcst.pm)
+
+#contrasto a cada uno de los modelos respecto del benchmark (media histórica)
+#H0 es comparar errores de pronóstico de j son en media equivalentes al benchmark
+#es un test de diferencias de medias(?)
+#no da diferencias significativas
+#power define la funcion cuadrática o lineal de los errores, z defecto cuadrática
+#se recom
+dm.test(e.fcst.forward, e.fcst.pm, alternative = "two.sided", power = 2)
+dm.test(e.fcst.backward, e.fcst.pm, alternative = "two.sided", power = 2)
+dm.test(e.fcst.lasso1, e.fcst.pm, alternative = "two.sided", power = 2)
+dm.test(e.fcst.lasso2, e.fcst.pm, alternative = "two.sided", power = 2)
+#dado que el mejor parece ser el forward, comparo al resto con él
+dm.test(e.fcst.pm, e.fcst.forward, alternative = "two.sided", power = 2)
+dm.test(e.fcst.backward, e.fcst.forward, alternative = "two.sided", power = 2)
+dm.test(e.fcst.lasso1, e.fcst.forward, alternative = "two.sided", power = 2)
+dm.test(e.fcst.lasso2, e.fcst.forward, alternative = "two.sided", power = 2)
+
+
+
+```
+## Modelo de factores
+
+Para finalizar, plantearemos un modelo de factores, en base a los datos utilizados hasta ahora.
+A partir del mejor modelo anterior, seleccionaremos algunas variables que ingresarán como 
+tales al modelo de predicción multivariado. El resto de las variables se integrarán
+a través de la construcción de factores. Si queremos estimar un modelo VAR(p) a partir 
+de las tres variables seleccionadas y deseáramos incluir las 38 restantes se reduciría 
+bastante el número de grados de libertad. Como se ha visto antes además, varias de las 
+variables están correlacionadas entre sí, lo que será aprovechado para la construcción 
+de los factores, permitiendo reducir la dimensionalidad del problema. En ese modelo 
+el factor que más explica la caída del AIC es la propia variable rezagada, la que ya será
+considerada en la parte autorregresiva del modelo. Las dos siguientes son la M2
+y el tipo de cambio interbancario, por lo que se tomarán estas dos variables como tales.
+Con las otras 37 se construirán algunos factores para representarlas en forma conjunta.
+
+```{r}
+step.model$anova
+```
+  
+
+
+```{r}
+#doy formato de series temporales, eliminando fecha y expectativas:
+#ojo que reutilizo nombre
+df_ury_ts <- ts(df_ury[ ,2:41], start = c(2005,1), frequency = 12) #declaro ts
+```
+
+En el Anexo se presenta la información sobre la estacionariedad de las covariables.
+Se realizó un análisis gráfico, del que se concluye la necesidad de aplicar loga-
+ritmos y una diferenciación, para todas las series salvo las de resultado fiscal
+las que, por tener valores negativos, sólo han sido diferenciadas. 
+
+```{r}
+x.1 <- cbind(df_ury_ts[,"IPC"],df_ury_ts[,"M2_cierre"], df_ury_ts[,"TC_Cierre_Interb_media"])
+colnames(x.1) <- c("IPC","M2_cierre", "TC_Cier_med")
+plot(diff(log(x.1)), main="Figura 9. Series de IPC, M2 y tipo de cambio, en logs y diferenciadas.")
+
+```
+Aplicamos los test de raíces unitarias para las dos series aún no testeadas.
+La aplicación de los tests y la salida se presentan en el Anexo. 
+La tabla de resumen se presenta más abajo, pudiéndose observar que la serie 
+diff log no presenta raíces unitarias para M2 ni TC.Sólo el test de PP arroja cierta
+duda sobre el tipo de cambio, pero los otros dos dan evidencia de su no existencia.
+
+```{r, echo=FALSE}
+RU <- read_excel("20201202_RU_M2_TC_URY.xlsx", col_names = TRUE) #importo los resultados de test RU
+print(RU)
+
+```
+
+Se procederá a transformar las series de covariables, mediante la aplicación del
+análisis de componentes principales. La matriz X incluye 37 variables, las que
+serán transformadas en logaritmos y diferenciadas y posteriormente 
+centradas y llevadas a varianza unitaria para evitar que las de mayor variaabilidad
+influyan sobremanera en la conformación de los factores. Como se comentara, las 
+series de resultado fiscal sólo se diferenciarán, dado que cuentan con valores 
+negativos.La conformación y características de los factores se presentan en el 
+anexo.
+
+```{r}
+lista <- c("IMS","IVF_Ind","IVF_Ind_SREF", "Energ_fact_res", "Energ_fact_prim",
+           "Energ_fact_Ind", "Energ_fact_cys",  "Energ_fact_total", "IVF_M_total",
+           "IVF_M_Consumo", "IVF_M_autos", "IVF_M_durables", "IVF_M_bienes_K",
+           "IVF_M_bienes_Int", "IVF_M_petoleo", "IVF_M_sEnerg", "IVF_X",
+           "IVF_X_primario", "IVF_X_Ind", "Int_act_MN_prom", "Int_act_MN_Emp",
+           "Cpmm_Ind_Mats", "Comm_Non_Fuel", "Comm_Food", "Comm_Meat",
+           "TC_Prom_Interb_media", "Emision_cierre", 
+           "M1_cierre", "M3_cierre", "TCR_Global", "TCR_xtra_reg",
+           "TCR_reg", "t_des"
+           )
+
+lista.1 <- c("SPC.RES_PRIM_SPNM", "SPC.RES_GLOB_SPNM",
+           "SPC.RES_ PRIM_SPC", "SPC.RES_GLOB_SPC")
+
+library(dplyr)
+x.2 <- df_ury %>% dplyr::select(one_of(lista))
+x.2 <- ts(x.2, start = c(2005,1), frequency = 12)
+x.3 <- df_ury %>% dplyr::select(one_of(lista.1))
+x.3 <- ts(x.3, start = c(2005,1), frequency = 12)
+x.4 <- cbind(x.2,x.3)
+
+x.21 <- diff(log(x.2[,1]))
+for(i in 2:33){
+  x.21 <- cbind(x.21, diff(log(x.2[,i])))
+}
+colnames(x.21) <- lista
+
+x.31 <- diff(x.3[,1])
+for(i in 2:4){
+  x.31 <- cbind(x.31, diff(x.3[,i]))
+}
+colnames(x.31) <- lista.1
+x.4 <- cbind(x.21,x.31)
+
+pr.out <- prcomp(x.4, scale =TRUE)
+
+```
+
+Graficamos los cinco primeros componentes principales.
+
+```{r}
+PC1 <- ts(pr.out$x[,1], start = c(2005,2), frequency = 12)
+PC2 <- ts(pr.out$x[,2], start = c(2005,2), frequency = 12)
+PC3 <- ts(pr.out$x[,3], start = c(2005,2), frequency = 12)
+PC4 <- ts(pr.out$x[,4], start = c(2005,2), frequency = 12)
+PC5 <- ts(pr.out$x[,5], start = c(2005,2), frequency = 12)
+PCs <- cbind(PC1,PC2,PC3,PC4,PC5)
+colnames(PCs) <- c("PC1","PC2", "PC3","PC4", "PC5")
+plot(PCs, main="Fig. 10. Primeros cinco componentes principales", ylab="", xlab="")
+```
+Chequeamos que la suma de proporciones de la varianza de cada componente es 1.
+
+```{r}
+prop_varianza <- pr.out$sdev^2 / sum(pr.out$sdev^2) 
+sum(prop_varianza) #chequeo que me da 1 la suma de las proporciones
+```
+Ahora verificamos cuánto es el aporte de cada factor a la varianza total. Los 
+3 primeros factores acumulan 43,25% del total, mientras que los primeros 5 
+explican el 57,67% del total. 
+
+```{r}
+library(ggplot2)
+ggplot(data = data.frame(prop_varianza, pc = 1:37),
+       aes(x = pc, y = prop_varianza)) +
+  geom_col(width = 0.3) +
+  scale_y_continuous(limits = c(0,0.25)) +
+  theme_bw() +
+  labs(x = "Componente principal",
+       y = "Prop. de varianza explicada")
+```
+
+A continuación, conformamos la base de datos final con los cinco primeros factores,
+más las dos variables reservadas, con el objeto de estimar un modelo FAVAR.
+Vamos a seleccionar la longitud de rezago óptima de la estimación del VAR a 
+partir del uso de criterios de información.
+
+```{r}
+factores <- ts(PCs, start = c(2005,2), frequency = 12)
+y <- ts(diff(log(x.1)), start = c(2005,2), frequency = 12)
+ynew <- cbind(y,factores[,1]) #esta matriz contiene a Yt y Ft
+ynew <- ts(ynew, start = c(2005,2), frequency = 12)
+library(vars)
+VARselect(ynew, type = "const")
+```
+
+Los rezagos no coinciden, podrían ser 2 o 10. Se probó con 10, pero el tamaño 
+de la muestra impidió aplicar el test de Portmentau. Por ello, se tomó el modelo
+con dos rezagos. Adicionalmente, se intentaron varias especificaciones
+arribándose a la presentada, donde se utilizan como predictores las dos variables
+reservadas y sólo el primer factor. Se intentaron otras varias, con distintas
+combinaciones de factores y variables, e incluso pasando una de las variables 
+a conformar los factores, pero la que se presenta es la que más se aproxima a 
+una estructura de errores no autocorrelacionados.La especificación, así como la 
+aplicación del test de Granger, se presentan en el anexo.
+
+```{r}
+favar1 <- VAR(ynew, p=2, type = "const")
+serial.test(favar1, lags.pt = 5)
+```
+
+
+Con base en la estructura del modelo para toda la serie (dos covariables, un factor
+y dos rezagos) se evaluará la capacidad de predecir de un modelo de similares 
+características, derivado a partir de una ventana móvil de datos, de longitud fija, 
+lo que permitirá además analizar si se produce algún cambio estructural en la serie.
+
+```{r}
+#PronÃ³sticos rolling del FAVAR para h=1
+
+fcst.favar <- matrix(0, nrow = 37, ncol = 4) #matriz para almacenar prostico, li, ls etc
+fcst.favar <- ts(fcst.favar, start=c(2017,8), frequency = 12)
+for(i in 1:37){
+  y.train <- window(y, start = 2005.083 + (i-1)/12, end = 2017.500 + (i-1)/12) #ventana fija que se corre
+  x.4.train <- window(x.4, start = 2005.083 + (i-1)/12, end = 2017.500 + (i-1)/12)
+  pr.out <- prcomp(x.4.train, scale =TRUE) 
+  PC <- scale(x.4.train)%*%pr.out$rotation #scale normaliza, %*% multiplica matrices
+  factores <- PC[,1]
+  y.train <- cbind(y.train, factores)
+  var2 <- VAR(y.train, p=2, type = "const")
+  forecasts <- predict(var2, n.ahead = 1)
+  fcst.favar[i,] <- forecasts$fcst$y.train.IPC
+}
+
+```
+
+
+Para contrastar el poder predictivo del modelo, se toman dos benchmarks, un modelo
+VAR y un modelo AR(1).
+
+```{r, echo=FALSE}
+#PronÃ³sticos rolling del VAR para h=1
+fcst.var <-  matrix(0, nrow = 37, ncol = 4)  
+fcst.var <- ts(fcst.var, start=c(2017,8), frequency = 12)
+for(i in 1:37){
+  y.train <- window(y, start = 2005.083 + (i-1)/12, end = 2017.500 + (i-1)/12)
+  var2 <- VAR(y.train, p=2, type = "const")
+  forecasts <- predict(var2, n.ahead = 1)
+  fcst.var[i,] <- forecasts$fcst$IPC
+}
+```
+
+
+```{r, echo=FALSE}
+#PronÃ³sticos rolling del AR(1) para h=1
+fcst.ar1 <- matrix(0, nrow = 37, ncol = 1)  
+fcst.ar1 <- ts(fcst.ar1, start=c(2017,8), frequency = 12)
+for(i in 1:37){
+  y.train <- window(y[, "IPC"], start = 2005.083 + (i-1)/12, end = 2017.500 + (i-1)/12)
+  fit <- arima(y.train, order = c(1,0,0))
+  forecasts <- predict(fit, n.ahead = 1)
+  fcst.ar1[i,] <- forecasts$pred
+}
+```
+
+Finalmente, se grafican los tres modelos y se comparan con la serie original. 
+Se observa que el FAVAR y el VAR se comportan de una manera muy similar y ambos
+recogen la mayoría de los movimientos de la inflación, aunque con menor varianza.
+Lamentablemente, lo limitado de la base de datos impidió incluir más factores y
+rezagos, lo que podría haber mejorado el ajuste.
+
+```{r}
+#Grafico los pronÃ³sticos de los 3 modelos:
+y.rlz <- ts(ynew[151:187,1], start=c(2017,8), frequency = 12)
+plot(fcst.favar[,"Series 1"], col = "grey", lwd = 5, main="Forecasts", ylab = "", xlab = "")
+lines(fcst.var[,"Series 1"])
+lines(fcst.ar1, col = "red")
+lines(y.rlz, col = "green")
+legend(2018.800, 0.011, legend=c("FAVAR", "VAR", "AR(1)", "RLZ"), col=c("grey", "black", "red", "green"), lwd = c(5,1,1), box.lty=0, ncol = 1, cex = 0.8, y.intersp=0.8)
+
+```
+En lo que respecta a las medidas de precisión, los modelos muestran performances
+similares aunque el test de Giacomini y Rossi muestra que performan mejor cualquiera
+de los dos modelos más complejos, respecto del AR(1). Al hacer la comparación 
+entre el FAVAR y el VAR, se observa a su vez que son similares.
+
+```{r, echo=FALSE}
+#Obtengo las medidas de accuracy: (evaluación media del modelo en todo el período)
+accuracy(fcst.favar[,"Series 1"],y.test)
+accuracy(fcst.var[,"Series 1"],y.test)
+accuracy(fcst.ar1,y.test)
+
+#Obtengo los errores de pronÃ³stico:
+e.fcst.favar <- y[151:187,1]-fcst.favar[,"Series 1"]
+e.fcst.var <- y[151:187,1]-fcst.var[,"Series 1"]
+e.fcst.ar1 <- y[151:187,1]-fcst.ar1
+
+#Test de Diebold-Mariano:
+dm.test(e.fcst.favar, e.fcst.ar1, alternative = "two.sided", power = 2)
+dm.test(e.fcst.var, e.fcst.ar1, alternative = "two.sided", power = 2)
+
+#Test de Giacomini-Rossi:
+library(murphydiagram)
+#obs out of sample > 30
+loss.favar <-  e.fcst.favar^2 #armo las funciones de pÃ©rdidas (cuadrÃ¡ticas)
+loss.var <-  e.fcst.var^2 #armo las funciones de pÃ©rdidas (cuadrÃ¡ticas)
+loss.ar1 <-  e.fcst.ar1^2 #armo las funciones de pÃ©rdidas (cuadrÃ¡ticas)
+
+fluctuation_test(loss.favar,loss.ar1, mu = 0.2) #mu es la inversa de m, ver paper
+fluctuation_test(loss.var,loss.ar1, mu = 0.2)
+fluctuation_test(loss.favar,loss.var, mu = 0.2)
+```
+
+## Conclusiones
+Las conclusiones del trabajo pueden resumirse en lo siguiente:
+1. La inflación en Uruguay en los últimos 15 años muestra una tendencia estable
+con dos rezagos y uno estacional.Presenta una raíz unitaria y un incremento de 
+la varianza a partir de 2013, por lo que se trabajó en varias especificaciones
+con la serie en logaritmos, diferenciada.
+2. No se observaron grandes diferencias en el poder predictivo,
+al trabajar con modelos univariados y ETS.
+3. La aplicación de modelos multivariados, en niveles, mejoró la calidad de la 
+predicción. Tanto el modelo de selección forward como el backward presentaron mejor
+performance de predicción que un modelo basado en la media de la serie. Adicionalmente,
+se estimó un modelo lasso con dos especificaciones distintas del hiperparámetro
+resultando que el poder predictivo de los modelos resultaron muy similares.
+4. Finalmente, se aplicó un modelo de factores. La construcción de estos, con 
+la muestra completa, implicó que fueron necesarios 5 de 37 para alcanzar el 55% 
+de la varianza explicada. Sin embargo, dado la limitación en el largo de varias de
+las series utilizadas, la muestra resulta ser lo suficientemente pequeña como para
+tener que limitar el modelo FAVAR a dos covariables y uno solo de los factores.
+A partir de ello, se consigue con este modelo una performance similar al modelo 
+VAR, de formulación más sencilla, siendo ambos son mejores que el AR(1).
+En suma, el trabajo permitió identificar algunos hechos estilizados interesantes
+sobre la inflación en Uruguay. La limitación de alguna de las series incluidas
+en el estudio llevaron a que no se pueda ser conclusivo respecto de modelos más
+ricos, como el FAVAR. La elección de series más largas podría ayudar en 
+futuros desarrollos.
+
+
+## Anexo
+### Test de raíces unitarias de la serie de IPC
+
+```{r, echo=FALSE}
+#tests de RU sobre la serie en logaritmos
+
+#ADF
+summary(ur.df(log(df_ury_ts[ ,c("IPC")]),type="trend",selectlags="BIC")) 
+summary(ur.df(diff(log(df_ury_ts[ ,c("IPC")])),type="trend",selectlags="BIC"))
+summary(ur.df(diff(diff(log(df_ury_ts[ ,c("IPC")]))),type="drift",selectlags="BIC"))
+#PP
+summary(ur.pp(log(df_ury_ts[ ,c("IPC")]), type="Z-tau", 
+              model="trend",lags="long"))
+summary(ur.pp(diff(log(df_ury_ts[ ,c("IPC")])), type="Z-tau",
+              model="trend",lags="long"))
+summary(ur.pp(diff(diff(log(df_ury_ts[ ,c("IPC")]))), type="Z-tau",
+              model="constant",lags="long"))
+#KPSS
+summary(ur.kpss(log(df_ury_ts[ ,c("IPC")]),type="tau",lags="long"))
+summary(ur.kpss(diff(log(df_ury_ts[ ,c("IPC")])),type="tau",lags="long"))
+summary(ur.kpss(diff(diff(log(df_ury_ts[ ,c("IPC")]))),type="mu",lags="long"))
+
+```
+
+### Estudio de estacionariedad de las covariables. Análisis gráfico.
+
+Se plantea en forma inicial la inspección gráfica. La mayoría de ellas aparece con 
+tendencia temporal y varias con incremento de varianza en el período por lo que se 
+procederá a tomar logaritmos y diferenciarlas.Dado que existen variables con valores
+negativos asociadas con el resultado fiscal, estas variables serán sólo diferenciadas.
+Finalmente, la última variable (expectativas de inflación promedio) no será considerada.
+
+
+```{r, echo= FALSE}
+for(i in 1:40){
+  print(autoplot(df_ury_ts[ ,i]))
+}
+
+```
+
+```{r, echo= FALSE}
+for(i in 1:40){
+  print(autoplot(diff(df_ury_ts[ ,i])))
+}
+
+```
+
+```{r, echo= FALSE}
+for(i in c(1:20, 25:40)){
+  print(autoplot(diff(log(df_ury_ts[ ,i]))))
+}
+
+```
+
+
+```{r, echo= FALSE}
+for(i in 21:24){
+  print(autoplot(diff(df_ury_ts[ ,i])))
+}
+
+```
+### Estudio de estacionariedad de las covariables. Tests de RU.
+
+```{r, echo=FALSE}
+#tests de RU sobre la serie en logaritmos, diferenciada, M2
+#ADF
+summary(ur.df(diff(log(x.1[ ,c("M2_cierre")])),type="trend",selectlags="BIC"))
+#PP
+summary(ur.pp(diff(log(x.1[ ,c("M2_cierre")])), type="Z-tau",
+              model="trend",lags="long"))
+#KPSS
+summary(ur.kpss(diff(log(x.1[ ,c("M2_cierre")])),type="tau",lags="long"))
+
+#tests de RU sobre la serie en logaritmos, diferenciada, M2
+#ADF
+summary(ur.df(diff(log(x.1[ ,c("TC_Cier_med")])),type="trend",selectlags="BIC"))
+#PP
+summary(ur.pp(diff(log(x.1[ ,c("TC_Cier_med")])), type="Z-tau",
+              model="trend",lags="long"))
+#KPSS
+summary(ur.kpss(diff(log(x.1[ ,c("TC_Cier_med")])),type="tau",lags="long"))
+
+```
+### Anállisis factorial
+
+Los factores seleccionados tienen las siguentes características.
+
+```{r}
+pr.out$rotation #es la matriz de pesos (loadings) que recibe cada variable en cada componente (las columnas son los autovectores)
+pr.out$x #son los componentes principales
+pr.out$center #es la media de cada x (antes de ser estandarizadas)
+pr.out$scale #es el desvío estándar de cada x (antes de ser estandarizadas)
+pr.out$sdev #es el desvío estándar de cada PC (notar que el PC1 es el que maximizó la varianza de las X)
+pr.out$sdev^2 #los autovalores (ordenados en forma descendente)
+
+```
+
+
+Chequeamos la suma de los autovectores al cuadrado, observando que son ortogonales.
+
+```{r}
+colSums(pr.out$rotation^2)
+zapsmall(cor(pr.out$x)) 
+```
+
+Dada la baja dimensionalidad del problema, se intentaron varias especificaciones,
+arribándose a la presentada, donde se utilizan como predictores las dos variables
+reservadas y sólo el primer facto, con dos rezagos. 
+Con ello se logra el valor más cercano al  no rechazo del test de Portmanteau, 
+aunque no se consigue estrictamente una estructura de errores no autocorrelacionados.
+
+```{r}
+summary(favar1)
+```
+
+Aplicamos el test de causalidad de Granger, de modo de corroborar si alguno de los
+determinantes se anticipa al IPC. Esto se corrobora a partir de los test de Granger
+y Wald, rechazámdp.
+
+```{r}
+lista2 <- colnames(ynew) 
+causality(favar1, cause = c("y.M2_cierre","y.TC_Cier_med","factores...1."))
+```
+El modelo VAR que se utiliza para comparar performances con FAVAR y AR(1) es 
+el que sigue.
+
+```{r, echo=FALSE}
+summary(var2)
+```
+
+
+

@@ -1,0 +1,6 @@
+"0",""
+"0","ggPacf(diff(log(df_ury_ts[ ,c(""IPC"")]))) +"
+"0","  labs("
+"0","    title = ""Figura 6. Correlograma parcial de la serie diferenciada del logaritmo de IPC."","
+"0","    subtitle =""Uruguay, Ene-2005 a Sep-2020"","
+"0","    caption = ""Fuente: INE."")"

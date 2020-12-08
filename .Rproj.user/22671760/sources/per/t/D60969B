@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1603798773905.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "D60969B",
+    "lastKnownWriteTime" : 1602595841,
+    "last_content_update" : 1603798773905,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "5E855F5D",
+        "caption" : "df_ury",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=df_ury&cache_key=5E855F5D",
+        "displayedObservations" : 1002,
+        "environment" : "",
+        "expression" : "df_ury",
+        "object" : "df_ury",
+        "preview" : 0,
+        "totalObservations" : 1002,
+        "variables" : 5
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

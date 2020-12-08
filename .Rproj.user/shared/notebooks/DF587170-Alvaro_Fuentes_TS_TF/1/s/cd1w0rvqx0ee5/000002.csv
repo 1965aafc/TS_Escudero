@@ -1,0 +1,6 @@
+"0","prop_varianza <- pr.out$sdev^2 / sum(pr.out$sdev^2) "
+"0","sum(prop_varianza) #chequeo que me da 1 la suma de las proporciones"
+"1","[1]"
+"1"," 1"
+"1","
+"

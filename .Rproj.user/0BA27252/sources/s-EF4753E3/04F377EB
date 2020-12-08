@@ -1,0 +1,32 @@
+{
+    "id": "04F377EB",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1606008702723.0,
+    "source_on_save": false,
+    "relative_order": 9,
+    "properties": {
+        "expression": "df_ury_ts",
+        "caption": "df_ury_ts",
+        "totalObservations": "188",
+        "displayedObservations": "188",
+        "variables": "41",
+        "cacheKey": "53CE60E8",
+        "object": "df_ury_ts",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=df_ury_ts&cache_key=53CE60E8&max_cols=50",
+        "preview": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 3548067076488918113,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1606008702723,
+    "read_only": false,
+    "read_only_alternatives": []
+}

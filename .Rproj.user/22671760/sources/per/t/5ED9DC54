@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1603157826127.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "697783672",
+    "id" : "5ED9DC54",
+    "lastKnownWriteTime" : 1603202339,
+    "last_content_update" : 1603202339026,
+    "path" : "~/Datacamp/TS_Escudero/practica_2.R",
+    "project_path" : "practica_2.R",
+    "properties" : {
+        "cursorPosition" : "158,9",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

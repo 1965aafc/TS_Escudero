@@ -1,0 +1,32 @@
+{
+    "id": "E7700AE1",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1607056106987.0,
+    "source_on_save": false,
+    "relative_order": 23,
+    "properties": {
+        "expression": "fcst.var",
+        "caption": "fcst.var",
+        "totalObservations": 37,
+        "displayedObservations": 37,
+        "variables": 4,
+        "cacheKey": "18871F9D",
+        "object": "fcst.var",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=fcst.var&cache_key=18871F9D&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1607049284,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1607056106987,
+    "read_only": false,
+    "read_only_alternatives": []
+}

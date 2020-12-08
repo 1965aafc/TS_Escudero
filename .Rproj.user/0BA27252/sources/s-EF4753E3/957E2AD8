@@ -1,0 +1,32 @@
+{
+    "id": "957E2AD8",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1606786166030.0,
+    "source_on_save": false,
+    "relative_order": 12,
+    "properties": {
+        "expression": "correlaciones",
+        "caption": "correlaciones",
+        "totalObservations": 41,
+        "displayedObservations": 41,
+        "variables": 41,
+        "cacheKey": "3C204326",
+        "object": "correlaciones",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=correlaciones&cache_key=3C204326&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 7308619195232122478,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1606786166030,
+    "read_only": false,
+    "read_only_alternatives": []
+}

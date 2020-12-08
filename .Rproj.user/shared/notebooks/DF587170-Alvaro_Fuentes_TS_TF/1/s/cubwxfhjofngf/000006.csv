@@ -1,0 +1,2 @@
+"0","RU <- read_excel(""20201122_RU_IPC_URY.xlsx"", col_names = TRUE) #importo los resultados de test RU"
+"0","print(RU)"
